@@ -108,6 +108,10 @@
     </style>
 </head>
 <body>
+  <div id="loader-screen" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0b0f19;z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;color:white;font-family:sans-serif;">
+        <h2 id="loader-status">Завантаження Іґґдрасіля...</h2>
+        <button id="start-btn" style="display:none;padding:12px 28px;font-size:18px;background:linear-gradient(45deg,#00f2fe,#4facfe);border:none;border-radius:8px;color:#000;font-weight:bold;cursor:pointer;">Увійти до Дерева</button>
+    </div>  
     <div id="info">Світове Дерево</div>
 
     <div id="planet-tooltip">
@@ -140,9 +144,9 @@
         bgAudio.loop = true; bgAudio.volume = 1.0;
         const sfxAudio = new Audio(); sfxAudio.loop = true;
 
-        window.addEventListener('pointerdown', () => {
-            if (bgAudio.paused) bgAudio.play().catch(e => console.log("Аудіо чекає"));
-        }, { once: true });
+        //window.addEventListener('pointerdown', () => {
+           // if (bgAudio.paused) bgAudio.play().catch(e => console.log("Аудіо чекає"));
+        //}, { once: true });
 
         const scene = new THREE.Scene();
         scene.fog = new THREE.FogExp2(0x0b0f19, 0.02);
@@ -194,6 +198,18 @@ loader.load('tree.glb', function (gltf) {
     const tree = gltf.scene;
     tree.scale.set(15, 15, 15);
     scene.add(tree);
+
+    // Приховуємо напис і показуємо кнопку входу
+    const statusText = document.getElementById('loader-status');
+    const startBtn = document.getElementById('start-btn');
+    if (statusText) statusText.style.display = 'none';
+    if (startBtn) startBtn.style.display = 'block';
+
+    startBtn.addEventListener('click', () => {
+        document.getElementById('loader-screen').style.display = 'none';
+        // Запуск фонового звуку після явного тапу користувача
+        bgAudio.play().catch(e => console.log("Помилка відтворення аудіо:", e));
+    });
 });
 
         // Світи
