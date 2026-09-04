@@ -355,26 +355,30 @@ window.addEventListener('click', (event) => {
     }
 });
         // ЗАКРИТТЯ ВІДЕО ТА ПОВЕРНЕННЯ НАЗАД
-        document.getElementById('close-modal').addEventListener('click', () => {
-            videoModal.classList.remove('active');
-            document.getElementById('video-iframe').src = ""; // Вимикаємо відео, щоб не грало на фоні
-            
-            // Відліт камери назад до стартової позиції
-            gsap.to(camera.position, {
-                x: initialCameraPos.x, y: initialCameraPos.y, z: initialCameraPos.z,
-                duration: 1.5, ease: "power2.inOut"
-            });
-            gsap.to(controls.target, {
-                x: 0, y: 0, z: 0,
-                duration: 1.5, ease: "power2.inOut",
-                onComplete: () => {
-                    isZoomed = false;
-                    controls.enabled = true; // Повертаємо керування
-                    controls.autoRotate = true; // Дерево знову крутиться
-                    hoveredWorld = null; // Скидаємо фокус
-                }
-            });
-        });
+document.getElementById('close-modal').addEventListener('click', () => {
+    videoModal.classList.remove('active');
+    document.getElementById('video-iframe').src = ""; // Вимикаємо відео, щоб не грало на фоні
+    
+    // ВАЖЛИВО: Вимикаємо звук планети і повертаємо фонову музику на повну гучність
+    sfxAudio.pause();
+    bgAudio.volume = 1.0; 
+
+    // Відліт камери назад до стартової позиції
+    gsap.to(camera.position, {
+        x: initialCameraPos.x, y: initialCameraPos.y, z: initialCameraPos.z,
+        duration: 1.5, ease: "power2.inOut"
+    });
+    gsap.to(controls.target, {
+        x: 0, y: 0, z: 0,
+        duration: 1.5, ease: "power2.inOut",
+        onComplete: () => {
+            isZoomed = false;
+            controls.enabled = true; // Повертаємо керування
+            controls.autoRotate = true; // Дерево знову крутиться
+            hoveredWorld = null; // Скидаємо фокус
+        }
+    });
+});
 
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
