@@ -306,38 +306,54 @@ loader.load('tree.glb', function (gltf) {
         });
 
         // КЛІК ПО ПЛАНЕТІ (ПОЛІТ ТА ВІДЕО)
-        window.addEventListener('click', () => {
-            if (hoveredWorld && !isZoomed) {
-                isZoomed = true;
-                tooltip.style.display = 'none'; // Ховаємо підказку
-                controls.enabled = false; // Вимикаємо ручне керування
-                
-                // Розраховуємо точку зупинки камери перед планетою
-                const targetPos = hoveredWorld.position.clone();
-                const direction = targetPos.clone().normalize();
-                const stopPos = targetPos.clone().sub(direction.multiplyScalar(3.5)); // Зупиняємося за 3.5 метри від планети
+window.addEventListener('click', (event) => {
+    // Якщо відео вже відкрито - ігноруємо кліки
+    if (isZoomed) return;
 
-                // Кінематографічний політ камери (GSAP)
-                gsap.to(camera.position, {
-                    x: stopPos.x, y: stopPos.y, z: stopPos.z,
-                    duration: 1.5, ease: "power2.inOut"
-                });
-                gsap.to(controls.target, {
-                    x: targetPos.x, y: targetPos.y, z: targetPos.z,
-                    duration: 1.5, ease: "power2.inOut",
-                    onComplete: () => {
-                        // Відкриваємо вікно після польоту
-                        document.getElementById('modal-title').innerText = hoveredWorld.userData.name;
-                        document.getElementById('modal-title').style.color = '#' + hoveredWorld.userData.color.toString(16).padStart(6, '0');
-                        document.getElementById('video-iframe').src = hoveredWorld.userData.embedUrl;
-                        document.getElementById('link-tiktok').href = hoveredWorld.userData.ttUrl;
-                        document.getElementById('link-youtube').href = hoveredWorld.userData.ytUrl;
-                        videoModal.classList.add('active');
-                    }
-                });
+    // Спеціально для телефонів: пускаємо промінь прямо в місце тапу
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    
+    // Перевіряємо, чи влучив тап у якусь планету
+    const intersects = raycaster.intersectObjects(worlds);
+
+    if (intersects.length > 0) {
+        const targetWorld = intersects[0].object;
+        isZoomed = true;
+        
+        tooltip.style.display = 'none'; // Ховаємо підказку
+        controls.enabled = false; // Вимикаємо ручне керування
+        
+        // Вмикаємо звук конкретної планети при тапі
+        bgAudio.volume = 0.2; 
+        sfxAudio.src = targetWorld.userData.audio; 
+        sfxAudio.play().catch(e => console.log(e));
+
+        // Розраховуємо точку зупинки камери
+        const targetPos = targetWorld.position.clone();
+        const direction = targetPos.clone().normalize();
+        const stopPos = targetPos.clone().sub(direction.multiplyScalar(3.5)); 
+
+        // Кінематографічний політ
+        gsap.to(camera.position, {
+            x: stopPos.x, y: stopPos.y, z: stopPos.z,
+            duration: 1.5, ease: "power2.inOut"
+        });
+        gsap.to(controls.target, {
+            x: targetPos.x, y: targetPos.y, z: targetPos.z,
+            duration: 1.5, ease: "power2.inOut",
+            onComplete: () => {
+                document.getElementById('modal-title').innerText = targetWorld.userData.name;
+                document.getElementById('modal-title').style.color = '#' + targetWorld.userData.color.toString(16).padStart(6, '0');
+                document.getElementById('video-iframe').src = targetWorld.userData.embedUrl;
+                document.getElementById('link-tiktok').href = targetWorld.userData.ttUrl;
+                document.getElementById('link-youtube').href = targetWorld.userData.ytUrl;
+                videoModal.classList.add('active');
             }
         });
-
+    }
+});
         // ЗАКРИТТЯ ВІДЕО ТА ПОВЕРНЕННЯ НАЗАД
         document.getElementById('close-modal').addEventListener('click', () => {
             videoModal.classList.remove('active');
