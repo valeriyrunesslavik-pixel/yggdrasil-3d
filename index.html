@@ -132,6 +132,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
 
     <script>
@@ -182,10 +183,11 @@
         }));
         scene.add(starsMesh);
 
-        // Дерево з підтримкою Draco
-const loader = new THREE.GLTFLoader();
+     // Дерево з підтримкою розпакування Draco (для файлу 20 МБ)
 const dracoLoader = new THREE.DRACOLoader();
-dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/');
+
+const loader = new THREE.GLTFLoader();
 loader.setDRACOLoader(dracoLoader);
 
 loader.load('tree.glb', function (gltf) {
