@@ -305,53 +305,90 @@ loader.load('tree.glb', function (gltf) {
             }
         });
 
-        // КЛІК ПО ПЛАНЕТІ (ПОЛІТ ТА ВІДЕО)
+        // КЛІК ПО ПЛАНЕТІ (ПЕРШИЙ ДОТИК - ПРЕВ'Ю, ДРУГИЙ - ПОЛІТ)
 window.addEventListener('pointerup', (event) => {
-    // Якщо відео вже відкрито або тапнули по кнопці старту - ігноруємо
     if (isZoomed || event.target.id === 'start-btn') return;
 
-    // Примусово зчитуємо координати саме в момент дотику!
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
     
-    // Перевіряємо, чи влучив палець у якусь планету
     const intersects = raycaster.intersectObjects(worlds);
 
     if (intersects.length > 0) {
         const targetWorld = intersects[0].object;
-        isZoomed = true;
-        
-        document.getElementById('planet-tooltip').style.display = 'none'; 
-        controls.enabled = false; 
-        
-        // Вмикаємо звук планети
-        bgAudio.volume = 0.2; 
-        sfxAudio.src = targetWorld.userData.audio; 
-        sfxAudio.play().catch(e => console.log(e));
 
-        // Розраховуємо точку зупинки камери
-        const targetPos = targetWorld.position.clone();
-        const direction = targetPos.clone().normalize();
-        const stopPos = targetPos.clone().sub(direction.multiplyScalar(3.5)); 
+        // ПЕРШИЙ ДОТИК (на телефоні) - Показуємо прев'ю
+        if (hoveredWorld !== targetWorld) {
+            hoveredWorld = targetWorld;
+            controls.autoRotate = false; // Зупиняємо дерево, щоб було зручно тапнути вдруге
+            
+            // Вираховуємо позицію для картинки-підказки
+            const vector = targetWorld.position.clone();
+            vector.project(camera);
+            let x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+            let y = -(vector.y * 0.5 - 0.5) * window.innerHeight;
+            if (x < 100) x = 110; if (x > window.innerWidth - 100) x = window.innerWidth - 110;
 
-        // Запускаємо політ
-        gsap.to(camera.position, {
-            x: stopPos.x, y: stopPos.y, z: stopPos.z,
-            duration: 1.5, ease: "power2.inOut"
-        });
-        gsap.to(controls.target, {
-            x: targetPos.x, y: targetPos.y, z: targetPos.z,
-            duration: 1.5, ease: "power2.inOut",
-            onComplete: () => {
-                document.getElementById('modal-title').innerText = targetWorld.userData.name;
-                document.getElementById('modal-title').style.color = '#' + targetWorld.userData.color.toString(16).padStart(6, '0');
-                document.getElementById('video-iframe').src = targetWorld.userData.embedUrl;
-                document.getElementById('link-tiktok').href = targetWorld.userData.ttUrl;
-                document.getElementById('link-youtube').href = targetWorld.userData.ytUrl;
-                document.getElementById('video-modal').classList.add('active');
-            }
-        });
+            const tooltip = document.getElementById('planet-tooltip');
+            tooltip.style.left = x + 'px'; 
+            tooltip.style.top = y + 'px';
+            
+            // Налаштовуємо текст і картинку
+            document.getElementById('info').innerText = targetWorld.userData.name;
+            document.getElementById('info').style.color = '#' + targetWorld.userData.color.toString(16).padStart(6, '0');
+            document.getElementById('tooltip-title').innerText = targetWorld.userData.name;
+            document.getElementById('tooltip-title').style.color = '#' + targetWorld.userData.color.toString(16).padStart(6, '0');
+            document.getElementById('tooltip-img').src = targetWorld.userData.image || "";
+            document.getElementById('tooltip-img').style.display = targetWorld.userData.image ? 'block' : 'none';
+            tooltip.style.display = 'block';
+
+            // Вмикаємо світло і звук
+            hoverLight.color.setHex(targetWorld.userData.color);
+            hoverLight.position.copy(targetWorld.position);
+            hoverLight.intensity = 2; ambientLight.intensity = 0.5;
+            bgAudio.volume = 0.2; 
+            sfxAudio.src = targetWorld.userData.audio; 
+            sfxAudio.play().catch(e => {});
+
+        } else {
+            // ДРУГИЙ ДОТИК (або клік на ПК) - Летимо всередину
+            isZoomed = true;
+            document.getElementById('planet-tooltip').style.display = 'none'; 
+            controls.enabled = false; 
+
+            const targetPos = targetWorld.position.clone();
+            const direction = targetPos.clone().normalize();
+            const stopPos = targetPos.clone().sub(direction.multiplyScalar(3.5)); 
+
+            gsap.to(camera.position, {
+                x: stopPos.x, y: stopPos.y, z: stopPos.z,
+                duration: 1.5, ease: "power2.inOut"
+            });
+            gsap.to(controls.target, {
+                x: targetPos.x, y: targetPos.y, z: targetPos.z,
+                duration: 1.5, ease: "power2.inOut",
+                onComplete: () => {
+                    document.getElementById('modal-title').innerText = targetWorld.userData.name;
+                    document.getElementById('modal-title').style.color = '#' + targetWorld.userData.color.toString(16).padStart(6, '0');
+                    document.getElementById('video-iframe').src = targetWorld.userData.embedUrl;
+                    document.getElementById('link-tiktok').href = targetWorld.userData.ttUrl;
+                    document.getElementById('link-youtube').href = targetWorld.userData.ytUrl;
+                    document.getElementById('video-modal').classList.add('active');
+                }
+            });
+        }
+    } else {
+        // ТАПНУЛИ В ПОРОЖНЕЧУ - Скидаємо виділення і закриваємо прев'ю
+        if (hoveredWorld !== null && !isZoomed) {
+            hoveredWorld = null;
+            controls.autoRotate = true; 
+            document.getElementById('info').innerText = "Світове Дерево";
+            document.getElementById('info').style.color = "white";
+            document.getElementById('planet-tooltip').style.display = 'none';
+            hoverLight.intensity = 0; ambientLight.intensity = 2.5;
+            bgAudio.volume = 1.0; sfxAudio.pause();
+        }
     }
 });
         // ЗАКРИТТЯ ВІДЕО ТА ПОВЕРНЕННЯ НАЗАД
