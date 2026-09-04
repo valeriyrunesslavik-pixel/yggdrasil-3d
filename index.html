@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title>Іґґдрасіль - Світове Дерево</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #0b0f19; 
+        }
+        #info {
+            position: absolute;
+            top: 20px; width: 100%; text-align: center;
+            color: white; font-family: sans-serif; font-size: 24px;
+            pointer-events: none; text-shadow: 0 0 10px #fff;
+            transition: color 0.5s;
+            z-index: 10;
+        }
+        
+        /* Підказка при наведенні */
+        #planet-tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(11, 15, 25, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            padding: 10px;
+            width: 180px;
+            color: white;
+            font-family: sans-serif;
+            pointer-events: none;
+            z-index: 100;
+            transform: translate(-50%, -120%);
+            backdrop-filter: blur(5px);
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        #planet-tooltip img { 
+            width: 100%; border-radius: 5px; margin-bottom: 5px; display: block;
+        }
+        #planet-tooltip h3 { 
+            margin: 0; font-size: 16px; text-shadow: 0 0 5px #000; 
+        }
+
+        /* Модальне вікно для відео (Кінотеатр) */
+        #video-modal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(5, 8, 15, 0.85);
+            backdrop-filter: blur(10px);
+            display: none; /* Сховано за замовчуванням */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+        #video-modal.active {
+            display: flex;
+            opacity: 1;
+        }
+        .modal-content {
+            position: relative;
+            width: 90%; max-width: 800px;
+            background: #111;
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 0 40px rgba(0,0,0,0.8);
+            text-align: center;
+        }
+        .close-btn {
+            position: absolute;
+            top: 10px; right: 20px;
+            font-size: 30px; color: white;
+            cursor: pointer; background: none; border: none;
+            transition: color 0.3s;
+        }
+        .close-btn:hover { color: #ff4444; }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* Пропорція 16:9 */
+            height: 0; overflow: hidden;
+            border-radius: 10px;
+            margin-top: 15px;
+        }
+        .video-container iframe {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            border: none;
+        }
+        .action-buttons {
+            margin-top: 20px;
+            display: flex; justify-content: center; gap: 15px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 12px 25px; border-radius: 8px;
+            color: white; font-family: sans-serif; font-size: 16px;
+            text-decoration: none; font-weight: bold;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255,255,255,0.2); }
+        .btn-tiktok { background: linear-gradient(45deg, #00f2fe, #4facfe); color: #000; }
+        .btn-youtube { background: linear-gradient(45deg, #ff0844, #ffb199); }
+    </style>
+</head>
+<body>
+    <div id="info">Світове Дерево</div>
+
+    <div id="planet-tooltip">
+        <img id="tooltip-img" src="" alt="Світ">
+        <h3 id="tooltip-title">Назва Світу</h3>
+    </div>
+
+    <div id="video-modal">
+        <div class="modal-content">
+            <button class="close-btn" id="close-modal">×</button>
+            <h2 id="modal-title" style="color: white; font-family: sans-serif; margin-top: 0;">Назва Світу</h2>
+            <div class="video-container">
+                <iframe id="video-iframe" src="" allowfullscreen></iframe>
+            </div>
+            <div class="action-buttons">
+                <a href="#" id="link-tiktok" class="btn btn-tiktok" target="_blank">Дивитися в TikTok</a>
+                <a href="#" id="link-youtube" class="btn btn-youtube" target="_blank">Дивитися на YouTube</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <script>
+        const bgAudio = new Audio('ambient.mp3');
+        bgAudio.loop = true; bgAudio.volume = 1.0;
+        const sfxAudio = new Audio(); sfxAudio.loop = true;
+
+        window.addEventListener('pointerdown', () => {
+            if (bgAudio.paused) bgAudio.play().catch(e => console.log("Аудіо чекає"));
+        }, { once: true });
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x0b0f19, 0.02);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Зберігаємо початкову позицію камери
+        const initialCameraPos = new THREE.Vector3(0, 5, 20);
+        camera.position.copy(initialCameraPos);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+
+        const ambientLight = new THREE.AmbientLight(0x606060, 2.5); scene.add(ambientLight);
+        const hoverLight = new THREE.PointLight(0xffffff, 0, 50); scene.add(hoverLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(10, 20, 10); scene.add(dirLight);
+
+        // Зірки
+        const particlesGeometry = new THREE.BufferGeometry();
+        const posArray = new Float32Array(2000 * 3);
+        for(let i = 0; i < 6000; i++) posArray[i] = (Math.random() - 0.5) * 100;
+        particlesGeometry.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+
+        const starCanvas = document.createElement('canvas');
+        starCanvas.width = 32; starCanvas.height = 32;
+        const ctx = starCanvas.getContext('2d');
+        ctx.beginPath(); ctx.arc(16, 16, 14, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff'; ctx.fill();
+        
+        const starsMesh = new THREE.Points(particlesGeometry, new THREE.PointsMaterial({ 
+            size: 0.15, color: 0xffffff, map: new THREE.CanvasTexture(starCanvas), transparent: true, alphaTest: 0.5 
+        }));
+        scene.add(starsMesh);
+
+        // Дерево
+        new THREE.GLTFLoader().load('tree.glb', function (gltf) {
+            const tree = gltf.scene; tree.scale.set(15, 15, 15); scene.add(tree);
+        });
+
+        // Світи
+        const worlds = [];
+        const sphereGeo = new THREE.SphereGeometry(1.0, 32, 32);
+        const textureLoader = new THREE.TextureLoader();
+
+        // Додали параметри для відеопосилань
+        function addWorld(name, x, y, z, color, audioFile, imageFile, embedUrl, ytUrl, ttUrl) {
+            const material = new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, map: imageFile ? textureLoader.load(imageFile) : null, 
+                emissive: 0x000000, transparent: true, opacity: 1.0
+            });
+            const sphere = new THREE.Mesh(sphereGeo, material);
+            sphere.position.set(x, y, z);
+            
+            // Зберігаємо всі посилання у світ
+            sphere.userData = { 
+                name: name, color: color, audio: audioFile, image: imageFile,
+                embedUrl: embedUrl, ytUrl: ytUrl, ttUrl: ttUrl
+            };
+
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.03, 16, 100), new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.8 }));
+            ring.rotation.x = Math.PI / 2; 
+            sphere.add(ring); scene.add(sphere); worlds.push(sphere);
+        }
+
+        // РЕДАГУЙ ПОСИЛАННЯ ТУТ: Замість "URL_ВІДЕО" вставляй свої посилання
+        addWorld("Асгард", 0, 8, 0, 0xffaa00, "asgard.mp3", "asgard.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Альфхейм", 5, 5, 4, 0xffd700, "alfheim.mp3", "alfheim.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Ванахейм", -5, 5, 4, 0x22ff88, "vanheim.mp3", "vanheim.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Мідгард", 0, 1, 0, 0x00ffcc, "midgard.mp3", "midgard.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Йотунхейм", 6, 0, -4, 0x8844ff, "jotun.mp3", "jotun.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Свартальфахейм", -6, 0, -4, 0xff8800, "forge.mp3", "forge.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Муспельхейм", 5, -4, 2, 0xff2200, "fire.mp3", "fire.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Ніфльхейм", -5, -4, 2, 0x0088ff, "ice.mp3", "ice.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+        addWorld("Хельхейм", 0, -8, 0, 0x444444, "hel.mp3", "hel.jpeg", "https://www.youtube.com/embed/dQw4w9WgXcQ", "URL_YOUTUBE", "URL_TIKTOK");
+
+        // ЛОГІКА ІНТЕРАКТИВУ
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let hoveredWorld = null;
+        let isZoomed = false; // Блокуємо наведення, якщо ми дивимося відео
+
+        const tooltip = document.getElementById('planet-tooltip');
+        const videoModal = document.getElementById('video-modal');
+
+        // Наведення миші (Tooltip)
+        window.addEventListener('mousemove', (event) => {
+            if(isZoomed) return; // Якщо відео відкрите, ігноруємо мишу
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(worlds);
+
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                const vector = object.position.clone(); vector.project(camera);
+                let x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+                let y = -(vector.y * 0.5 - 0.5) * window.innerHeight;
+                if (x < 100) x = 110; if (x > window.innerWidth - 100) x = window.innerWidth - 110;
+
+                tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
+                
+                if (hoveredWorld !== object) {
+                    hoveredWorld = object;
+                    controls.autoRotate = false; document.body.style.cursor = "pointer";
+                    document.getElementById('info').innerText = object.userData.name;
+                    document.getElementById('info').style.color = '#' + object.userData.color.toString(16).padStart(6, '0');
+                    document.getElementById('tooltip-title').innerText = object.userData.name;
+                    document.getElementById('tooltip-title').style.color = '#' + object.userData.color.toString(16).padStart(6, '0');
+                    document.getElementById('tooltip-img').src = object.userData.image || "";
+                    document.getElementById('tooltip-img').style.display = object.userData.image ? 'block' : 'none';
+                    tooltip.style.display = 'block';
+
+                    hoverLight.color.setHex(object.userData.color);
+                    hoverLight.position.copy(object.position);
+                    hoverLight.intensity = 2; ambientLight.intensity = 0.5;
+                    bgAudio.volume = 0.2; sfxAudio.src = object.userData.audio; 
+                    sfxAudio.play().catch(e => {});
+                }
+            } else {
+                if (hoveredWorld !== null) {
+                    hoveredWorld = null;
+                    controls.autoRotate = true; document.body.style.cursor = "default";
+                    document.getElementById('info').innerText = "Світове Дерево";
+                    document.getElementById('info').style.color = "white";
+                    tooltip.style.display = 'none';
+                    hoverLight.intensity = 0; ambientLight.intensity = 2.5;
+                    bgAudio.volume = 1.0; sfxAudio.pause();
+                }
+            }
+        });
+
+        // КЛІК ПО ПЛАНЕТІ (ПОЛІТ ТА ВІДЕО)
+        window.addEventListener('click', () => {
+            if (hoveredWorld && !isZoomed) {
+                isZoomed = true;
+                tooltip.style.display = 'none'; // Ховаємо підказку
+                controls.enabled = false; // Вимикаємо ручне керування
+                
+                // Розраховуємо точку зупинки камери перед планетою
+                const targetPos = hoveredWorld.position.clone();
+                const direction = targetPos.clone().normalize();
+                const stopPos = targetPos.clone().sub(direction.multiplyScalar(3.5)); // Зупиняємося за 3.5 метри від планети
+
+                // Кінематографічний політ камери (GSAP)
+                gsap.to(camera.position, {
+                    x: stopPos.x, y: stopPos.y, z: stopPos.z,
+                    duration: 1.5, ease: "power2.inOut"
+                });
+                gsap.to(controls.target, {
+                    x: targetPos.x, y: targetPos.y, z: targetPos.z,
+                    duration: 1.5, ease: "power2.inOut",
+                    onComplete: () => {
+                        // Відкриваємо вікно після польоту
+                        document.getElementById('modal-title').innerText = hoveredWorld.userData.name;
+                        document.getElementById('modal-title').style.color = '#' + hoveredWorld.userData.color.toString(16).padStart(6, '0');
+                        document.getElementById('video-iframe').src = hoveredWorld.userData.embedUrl;
+                        document.getElementById('link-tiktok').href = hoveredWorld.userData.ttUrl;
+                        document.getElementById('link-youtube').href = hoveredWorld.userData.ytUrl;
+                        videoModal.classList.add('active');
+                    }
+                });
+            }
+        });
+
+        // ЗАКРИТТЯ ВІДЕО ТА ПОВЕРНЕННЯ НАЗАД
+        document.getElementById('close-modal').addEventListener('click', () => {
+            videoModal.classList.remove('active');
+            document.getElementById('video-iframe').src = ""; // Вимикаємо відео, щоб не грало на фоні
+            
+            // Відліт камери назад до стартової позиції
+            gsap.to(camera.position, {
+                x: initialCameraPos.x, y: initialCameraPos.y, z: initialCameraPos.z,
+                duration: 1.5, ease: "power2.inOut"
+            });
+            gsap.to(controls.target, {
+                x: 0, y: 0, z: 0,
+                duration: 1.5, ease: "power2.inOut",
+                onComplete: () => {
+                    isZoomed = false;
+                    controls.enabled = true; // Повертаємо керування
+                    controls.autoRotate = true; // Дерево знову крутиться
+                    hoveredWorld = null; // Скидаємо фокус
+                }
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            starsMesh.rotation.y += 0.0005;
+            if(controls.enabled) controls.update(); // Оновлюємо орбіту тільки якщо вона не заблокована відео
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
