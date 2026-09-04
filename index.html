@@ -182,10 +182,17 @@
         }));
         scene.add(starsMesh);
 
-        // Дерево
-        new THREE.GLTFLoader().load('tree.glb', function (gltf) {
-            const tree = gltf.scene; tree.scale.set(15, 15, 15); scene.add(tree);
-        });
+        // Дерево з підтримкою Draco
+const loader = new THREE.GLTFLoader();
+const dracoLoader = new THREE.DRACOLoader();
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.5.6/');
+loader.setDRACOLoader(dracoLoader);
+
+loader.load('tree.glb', function (gltf) {
+    const tree = gltf.scene;
+    tree.scale.set(15, 15, 15);
+    scene.add(tree);
+});
 
         // Світи
         const worlds = [];
